@@ -57,8 +57,7 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
     operation Oracle_One (x : Qubit[], y : Qubit) : Unit {
         // Since f(x) = 1 for all values of x, |y ⊕ f(x)⟩ = |y ⊕ 1⟩ = |NOT y⟩.
         // This means that the operation needs to flip qubit y (i.e. transform |0⟩ to |1⟩ and vice versa).
-
-        // ...
+        X(y);
     }
     
     
@@ -72,8 +71,7 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         // The following line enforces the constraints on the value of k that you are given.
         // You don't need to modify it. Feel free to remove it, this won't cause your code to fail.
         EqualityFactB(0 <= k and k < Length(x), true, "k should be between 0 and N-1, inclusive");
-
-        // ...
+        CX(x[k], y);
     }
     
     
@@ -84,8 +82,7 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
     // Goal: transform state |x, y⟩ into state |x, y ⊕ f(x)⟩ (⊕ is addition modulo 2).
     operation Oracle_OddNumberOfOnes (x : Qubit[], y : Qubit) : Unit {
         // Hint: f(x) can be represented as x_0 ⊕ x_1 ⊕ ... ⊕ x_(N-1)
-
-        // ...
+        for (q in x) {CX(q, y);}
     }
     
     
@@ -102,8 +99,9 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         // The following line enforces the constraint on the input arrays.
         // You don't need to modify it. Feel free to remove it, this won't cause your code to fail.
         EqualityFactI(Length(x), Length(r), "Arrays should have the same length");
-
-        // ...
+        for(i in 0..Length(x)-1){
+            if(r[i]==1) {CX(x[i], y);}
+        }
     }
     
     
@@ -118,8 +116,12 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         // The following line enforces the constraint on the input arrays.
         // You don't need to modify it. Feel free to remove it, this won't cause your code to fail.
         EqualityFactI(Length(x), Length(r), "Arrays should have the same length");
+        for(i in 0..Length(x)-1){
+            if(r[i]==0) {X(x[i]);}
+            CX(x[i], y);
+            if(r[i]==0) {X(x[i]);}
+        }
 
-        // ...
     }
     
     
@@ -139,13 +141,24 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         EqualityFactB(1 <= P and P <= Length(x), true, "P should be between 1 and N, inclusive");
 
         // Hint: the first part of the function is the same as in task 1.4
+        for (q in x) {CX(q, y);}
 
-        // ...
+
+        for(i in 0..P-1){
+            if(prefix[i] == 0){
+                X(x[i]);
+            }
+        }
 
         // Hint: you can use Controlled functor to perform multicontrolled gates
         // (gates with multiple control qubits).
+        Controlled X(x[0..P-1], y);
 
-        // ...
+        for(i in 0..P-1){
+            if(prefix[i] == 0){
+                X(x[i]);
+            }
+        }
     }
     
     
@@ -160,8 +173,10 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         EqualityFactB(3 == Length(x), true, "x should have exactly 3 qubits");
 
         // Hint: represent f(x) in terms of AND and ⊕ operations
+        CCNOT(x[0], x[1], y);
+        CCNOT(x[1], x[2], y);
+        CCNOT(x[0], x[2], y);
 
-        // ...
     }
     
     
@@ -179,7 +194,9 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
     //      2) create |-⟩ state (|-⟩ = (|0⟩ - |1⟩) / sqrt(2)) on answer register
     operation BV_StatePrep (query : Qubit[], answer : Qubit) : Unit
     is Adj {
-            // ...
+            for(q in query){ H(q); }
+            X(answer);
+            H(answer);
     }
     
     
@@ -203,7 +220,18 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         // the variable has to be mutable to allow updating it.
         mutable r = new Int[N];
         
-        // ...
+        using (query = Qubit[N]){
+        using (answer = Qubit()){
+            BV_StatePrep(query, answer);
+            Uf(query, answer);
+            for(i in 0..N-1){
+                H(query[i]);
+                if(M(query[i]) == One)
+                {set r w/= i <- 1;}
+            }
+            ResetAll(query);
+            Reset(answer);
+        }}
 
         return r;
     }
@@ -228,7 +256,6 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
 
         // BV_Test appears in the list of unit tests for the solution; run it to verify your code.
 
-        // ...
     }
     
     
@@ -262,8 +289,11 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         // it can be expressed as running Bernstein-Vazirani algorithm
         // and then post-processing the return value classically.
         
-        // ...
-
+        let r = BV_Algorithm(N, Uf);
+        for(i in r){
+            if (i == 1){ set isConstantFunction = false; }
+        }
+        
         return isConstantFunction;
     }
     
@@ -305,8 +335,21 @@ namespace Quantum.Kata.DeutschJozsaAlgorithm {
         // Declare an Int array in which the result will be stored;
         // the variable has to be mutable to allow updating it.
         mutable r = new Int[N];
+
+
+        // f(x) = sum(r_i) + N
+
+        using (query = Qubit[N]){
+        using (answer = Qubit()){
+            Uf(query, answer);
+            if(N%2 == 1) { X(answer); }
+
+            if(M(answer) == One){ set r w/=0 <- 1; }
+
+            ResetAll(query);
+            Reset(answer);
+        }}
         
-        // ...
         return r;
     }
     
