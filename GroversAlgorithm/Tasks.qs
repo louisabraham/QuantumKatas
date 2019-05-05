@@ -51,7 +51,7 @@ namespace Quantum.Kata.GroversAlgorithm {
     operation Oracle_AllOnes (queryRegister : Qubit[], target : Qubit) : Unit {
         
         body (...) {
-            // ...
+            (Controlled X)(queryRegister, target);
         }
         
         adjoint self;
@@ -72,7 +72,13 @@ namespace Quantum.Kata.GroversAlgorithm {
     operation Oracle_AlternatingBits (queryRegister : Qubit[], target : Qubit) : Unit {
         
         body (...) {
-            // ...
+            for(i in 0..Length(queryRegister)-1){
+                if(i % 2 == 1){ X(queryRegister[i]); }
+            }
+            (Controlled X)(queryRegister, target);
+            for(i in 0..Length(queryRegister)-1){
+                if(i % 2 == 1){ X(queryRegister[i]); }
+            }
         }
         
         adjoint self;
@@ -97,7 +103,13 @@ namespace Quantum.Kata.GroversAlgorithm {
             // You don't need to modify it. Feel free to remove it, this won't cause your code to fail.
             EqualityFactI(Length(queryRegister), Length(pattern), "Arrays should have the same length");
 
-            // ...
+            for(i in 0..Length(queryRegister)-1){
+                if(not pattern[i]){ X(queryRegister[i]); }
+            }
+            (Controlled X)(queryRegister, target);
+            for(i in 0..Length(queryRegister)-1){
+                if(not pattern[i]){ X(queryRegister[i]); }
+            }
         }
         
         adjoint self;
@@ -114,15 +126,23 @@ namespace Quantum.Kata.GroversAlgorithm {
     // but it is often easier to write a marking oracle for a given condition. This transformation
     // allows to convert one type of oracle into the other. The transformation is described at
     // https://en.wikipedia.org/wiki/Grover%27s_algorithm, section "Description of Uω".
+    
+    operation Aux (markingOracle : ((Qubit[], Qubit) => Unit is Adj), register : Qubit[]) : Unit is Adj {
+        using (y = Qubit()){
+            X(y);
+            H(y);
+            markingOracle(register, y);
+            H(y);
+            X(y);
+        }
+    }
+
     function OracleConverter (markingOracle : ((Qubit[], Qubit) => Unit is Adj)) : (Qubit[] => Unit is Adj) {
         
         // Hint: Remember that you can define auxiliary operations.
-        
-        // ...
-        
         // Currently this function returns a no-op operation for the sake of being able to compile the code.
         // You will need to remove ApplyToEachA and return your own oracle instead.
-        return ApplyToEachA(I, _);
+        return Aux(markingOracle, _);
     }
     
     
@@ -138,7 +158,7 @@ namespace Quantum.Kata.GroversAlgorithm {
     //        will prepare an equal superposition of all 2^N basis states.
     operation HadamardTransform (register : Qubit[]) : Unit
     is Adj {
-        // ...
+        for(q in register){ H(q); }
     }
     
     
@@ -157,8 +177,11 @@ namespace Quantum.Kata.GroversAlgorithm {
         // as the state obtained by flipping the sign of only the |0...0⟩ state.
             
         // Hint 2: You can use the same trick as in the oracle converter task.
-            
-        // ...
+        
+        for(q in register){X(q);}
+        let op = OracleConverter(Oracle_AllOnes);
+        op(register);
+        for(q in register){X(q);}
     }
     
     
@@ -177,7 +200,11 @@ namespace Quantum.Kata.GroversAlgorithm {
         //    3) perform a conditional phase shift
         //    4) apply the Hadamard transform again
             
-        // ...
+        oracle(register);
+        HadamardTransform(register);
+        ConditionalPhaseFlip(register);
+        HadamardTransform(register);
+
     }
     
     
@@ -196,7 +223,10 @@ namespace Quantum.Kata.GroversAlgorithm {
     // Note: The number of iterations is passed as a parameter because it is defined by the nature of the problem
     // and is easier to configure/calculate outside the search algorithm itself (for example, in the driver).
     operation GroversSearch (register : Qubit[], oracle : ((Qubit[], Qubit) => Unit is Adj), iterations : Int) : Unit {
-        // ...
+        HadamardTransform(register);
+        let phase_flipping_oracle = OracleConverter(oracle);
+        for(i in 1..iterations){ GroverIteration(register, phase_flipping_oracle); }
+
     }
     
     
